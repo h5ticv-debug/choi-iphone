@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#171820" />
-  <title>choi의 아이폰</title>
+  <title>choi iphone</title>
   <style>
     :root { font-family: -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-synthesis:none; }
     * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
@@ -801,16 +801,31 @@
 .call-scene .call-controls .call-control>span.call-svg-icon svg{height:25px!important;width:25px!important;min-height:25px!important;min-width:25px!important;display:block!important;stroke:currentColor!important;overflow:visible!important}
 .call-scene .call-controls .call-control>span.call-svg-icon svg[fill="currentColor"]{fill:currentColor!important}
 .call-scene .call-controls .call-control small{font-size:10px!important;white-space:nowrap!important;color:#fff!important;font-weight:400!important}
-/* ChatGPT 아이콘 검정색으로 변경 */
-.app-icon.ic-chatgpt {
-  background: linear-gradient(155deg, #31353d, #13161c) !important;
-  color: white !important;
-}
 
-.app-icon.ic-chatgpt .chatgpt-symbol {
-  color: white !important;
+/* Neutral ChatGPT home icon, independent of browser/app icon assets */
+.app-grid .app-icon.ic-chatgpt, .app-link .app-icon.ic-chatgpt, .app-icon.ic-chatgpt {
+  background:linear-gradient(155deg,#31353d,#13161c) !important;
+  background-color:#1a1d23 !important;
+  color:#fff !important;
+  box-shadow:0 3px 9px #10131c66,inset 0 1px 1px #ffffff2d !important;
 }
-  </style>
+.app-icon.ic-chatgpt .chatgpt-symbol {color:#fff!important;text-shadow:none!important;}
+
+/* ChatGPT icon: override green styles on mobile Safari */
+.ic-chatgpt,
+.app-icon.ic-chatgpt,
+.app-grid .app-icon.ic-chatgpt,
+.app-link .app-icon.ic-chatgpt {
+  background: #1c1c1e !important;
+  background-color: #1c1c1e !important;
+  background-image: none !important;
+  color: #ffffff !important;
+}
+.app-icon.ic-chatgpt svg,
+.app-icon.ic-chatgpt .chatgpt-symbol {
+  color: #ffffff !important;
+}
+</style>
 </head>
 <body>
   <svg aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden">
@@ -1263,12 +1278,24 @@
         const AudioCtor=window.AudioContext||window.webkitAudioContext;
         if(!AudioCtor)return;
         if(!kakaoAudioContext)kakaoAudioContext=new AudioCtor();
-        if(kakaoAudioContext.state==='suspended')kakaoAudioContext.resume().catch(()=>{});
+        if(kakaoAudioContext.state!=='running')kakaoAudioContext.resume().catch(()=>{});
       }catch(e){}
     }
     document.addEventListener('pointerdown',prepareKakaoSound,{passive:true});
     document.addEventListener('touchstart',prepareKakaoSound,{passive:true});
     document.addEventListener('keydown',prepareKakaoSound);
+    // A real tap on this control is the most reliable way to unlock Web Audio on iOS Safari.
+    async function enableAndTestSound(){
+      try{
+        prepareKakaoSound();
+        if(!kakaoAudioContext){toast('이 브라우저에서는 오디오를 사용할 수 없습니다');return;}
+        await kakaoAudioContext.resume();
+        if(kakaoAudioContext.state!=='running'){toast('소리를 켤 수 없습니다. 무음 모드와 볼륨을 확인해 주세요');return;}
+        lastKakaoChimeAt=0;
+        playKakaoNoticeSound();
+        toast('알림음 테스트 재생 중');
+      }catch(err){toast('소리 재생이 차단되었습니다. Safari에서 다시 눌러 주세요');}
+    }
     function playKakaoNoticeSound(){
       try{
         if(!kakaoAudioContext||kakaoAudioContext.state!=='running')return;
@@ -1280,7 +1307,7 @@
           const gain=kakaoAudioContext.createGain();
           oscillator.type='sine';oscillator.frequency.value=frequency;
           gain.gain.setValueAtTime(0.0001,t+offset);
-          gain.gain.exponentialRampToValueAtTime(0.085,t+offset+0.018);
+          gain.gain.exponentialRampToValueAtTime(0.22,t+offset+0.018);
           gain.gain.exponentialRampToValueAtTime(0.0001,t+offset+0.16);
           oscillator.connect(gain);gain.connect(kakaoAudioContext.destination);
           oscillator.start(t+offset);oscillator.stop(t+offset+0.17);
@@ -1303,8 +1330,8 @@
           const osc=ctx.createOscillator(),gain=ctx.createGain();
           osc.type=i%3===2?'triangle':'sine';osc.frequency.setValueAtTime(hz,nowTime+offset);
           gain.gain.setValueAtTime(0.0001,nowTime+offset);
-          gain.gain.exponentialRampToValueAtTime(0.085,nowTime+offset+0.025);
-          gain.gain.setValueAtTime(0.06,nowTime+offset+Math.min(len*0.58,len-0.04));
+          gain.gain.exponentialRampToValueAtTime(0.19,nowTime+offset+0.025);
+          gain.gain.setValueAtTime(0.12,nowTime+offset+Math.min(len*0.58,len-0.04));
           gain.gain.exponentialRampToValueAtTime(0.0001,nowTime+offset+len);
           osc.connect(gain);gain.connect(ctx.destination);
           osc.start(nowTime+offset);osc.stop(nowTime+offset+len+0.015);
@@ -1463,7 +1490,7 @@
         case 'clock':content=analog();break;
         case 'notes':content='<span class="notes-paper"><span></span><span></span><span></span></span>';break;
         case 'safari':content='<span class="safari-art"><b>▲</b><i>▼</i></span>';break;
-        case 'chatgpt':content='<span class="chatgpt-symbol">✳</span>';break;
+        case 'chatgpt':content='<svg aria-hidden="true" width="35" height="35" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 4.5L21.2 12.1L29 8L24.1 15.2L32 18L24.1 20.8L29 28L21.2 23.9L18 31.5L14.8 23.9L7 28L11.9 20.8L4 18L11.9 15.2L7 8L14.8 12.1Z" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>';break;
         case 'kakao':content='<span class="kakao-symbol">TALK</span>';break;
         case 'music':content='<span class="music-art">♫</span>';break;
         case 'health':content='<span class="health-heart">♥</span>';break;
@@ -3101,6 +3128,10 @@
           ${row('☀','디스플레이 및 밝기','','settings-info')}
           ${row('▧','배경화면','','settings-wallpaper','#56b4ed')}
         </div>
+        <div class="ios-group" style="padding:13px 16px;display:flex;flex-direction:column;gap:8px">
+          <button type="button" data-action="sound-test" style="border:0;border-radius:11px;background:#247cf2;color:#fff;font:600 14px inherit;padding:13px 15px;cursor:pointer">🔊 알림음 켜기 · 소리 테스트</button>
+          <div style="font-size:11px;color:#737b89;line-height:1.55">아이폰에서는 잠금 해제 후 이 버튼을 한 번 눌러 소리를 활성화해 주세요. 무음 모드에서는 들리지 않을 수 있습니다.</div>
+        </div>
         <div class="ios-group ios-battery-controls" id="settingsBatteryControls" hidden>
           <div class="ios-battery-head">표시할 배터리 잔량 <b id="batteryValue">${state.battery}%</b></div>
           <input type="range" id="batterySlider" min="1" max="100" value="${state.battery}" aria-label="배터리 잔량 조절">
@@ -3247,6 +3278,7 @@
     function saveThreadArray(){store.set(state.app==='kakao'?'kakao':'threads',state.app==='kakao'?state.kakao:state.threads);}
     function openLink(url) {window.open(url,'_blank','noopener,noreferrer');}
     screen.addEventListener('click',e=>{
+      if(e.target.closest('[data-action="sound-test"]')){e.preventDefault();enableAndTestSound();return;}
       if(e.target.closest('[data-notice-open]')){e.preventDefault();openPhoneNotice();return;}
       if(incomingCallVisible)return;
       if(state.off && e.target.closest('.screen-off')){state.off=false;render();return;}
