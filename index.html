@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#171820" />
-  <title>choi iphone</title>
+  <title>최요원의 아이폰</title>
   <style>
     :root { font-family: -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-synthesis:none; }
     * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
@@ -705,7 +705,7 @@
 .kakao-gift-row small{display:block;margin-top:3px;color:#999;font-size:10px}
 
 /* Inside-handset notification banners */
-.screen .phone-notification{position:absolute;z-index:380;left:9px;right:9px;top:43px;min-height:66px;background:rgba(242,244,249,.97);border:1px solid rgba(255,255,255,.78);box-shadow:0 8px 28px rgba(3,9,20,.32);border-radius:16px;padding:11px 12px;display:flex;align-items:center;gap:10px;box-sizing:border-box;color:#20242b;text-align:left;cursor:pointer;font:inherit;animation:phone-notice-enter .3s ease-out}
+.screen .phone-notification{position:absolute;z-index:380;left:9px;right:9px;top:43px;min-height:66px;background:rgba(242,244,249,.97);border:1px solid rgba(255,255,255,.78);box-shadow:0 8px 28px rgba(3,9,20,.32);border-radius:16px;padding:11px 12px;display:flex;align-items:center;gap:10px;box-sizing:border-box;color:#20242b;text-align:left;cursor:pointer;font:inherit;animation:none !important}
 .screen .phone-notification .notice-icon{width:36px;height:36px;border-radius:10px;background:#50c77b;color:#fff;flex-shrink:0;display:grid;place-items:center;font-size:19px;font-weight:750}
 .screen .phone-notification .notice-icon.kakao{background:#ffdc37;color:#282320;font-size:12px}
 .screen .phone-notification .notice-icon.call{background:#53c577}
@@ -832,6 +832,9 @@
 .call-scene .call-controls .call-control small{font-size:12px!important;}
 .phone-entry b{font-size:16px!important;}
 .phone-entry small{font-size:12px!important;}
+
+/* 연락처 목록은 길어져도 끝까지 스크롤 가능 */
+.phone-entries { overflow-y: auto !important; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - 270px); padding-bottom: 85px !important; overscroll-behavior: contain; }
 </style>
 </head>
 <body>
@@ -1384,6 +1387,7 @@
       const logo=n.kind==='kakao'?'TALK':n.kind==='call'?'☎':'✉';
       const app=n.kind==='kakao'?'카카오톡':n.kind==='call'?'전화':'메시지';
       el.innerHTML=`<span class="notice-icon ${n.kind}">${logo}</span><span class="notice-copy"><span class="notice-title">${safe(n.sender)}<small>${app} · 지금</small></span><span class="notice-body">${safe(n.body)}</span></span>`;
+      el.classList.add('notice-stable');
       screen.appendChild(el);
     }
     function openPhoneNotice(){
@@ -1404,12 +1408,13 @@
     // update cannot replay a notification already seen in an older HTML build.
     const oneTimeNoticesSeen=new Set();
     const noticeLegacyKeys={
-      momentring_20261024_delivery_v5:[],
-      haegeum_20261024_invitation_v5:[]
+      momentring_20261024_delivery_repaired_v6:['momentring_20261024_delivery_v5','momentring_20261024_delivery_v4','momentring_20261024_delivery_repaired_v6'],
+      haegeum_20261024_invitation_repaired_v6:['haegeum_20261024_invitation_v5','haegeum_20261024_invitation_v4','haegeum_20261024_invitation_repaired_v6']
     };
     function storedNoticeFlag(key){
       if(oneTimeNoticesSeen.has(key))return true;
       if((noticeLegacyKeys[key]||[]).some(k=>store.get(k,false)===true))return true;
+      if((noticeLegacyKeys[key]||[]).some(k=>{try{return localStorage.getItem('retroiphone_once_'+k)==='1'||localStorage.getItem('retroiphone_story_once_'+k)==='1';}catch(e){return false;}}))return true;
       for(const k of ['retroiphone_once_'+key,'retroiphone_story_once_'+key]){
         try{if(localStorage.getItem(k)==='1')return true;}catch(e){}
         try{if(sessionStorage.getItem(k)==='1')return true;}catch(e){}
@@ -1426,15 +1431,17 @@
         try{document.cookie=k+'=1; path=/; max-age=31536000; SameSite=Lax';}catch(e){}
       }
     }
-    const momentringDeliveryText='[WEB발신] 주문하신 커플링이 배송 완료되었습니다.';
+    const momentringDeliveryText='[Web발신] [모먼트링] 주문번호 MR-1026-0700 배송 완료. 상품이 수령 장소에 도착했습니다.';
     const haegeum700Request='최가야 내일 시간 되냐';
     const haegeum700Response='그래 너네 기념일이라고 해서 사주는 거니까 재관이도 데리고 와라';
     function notifyMomentringDelivery(){
-      const key='momentring_20261024_delivery_v5';
+      const key='momentring_20261024_delivery_repaired_v6';
       if(storedNoticeFlag(key))return;
+      if(state.mode==='lock'||state.mode==='passcode'||state.off||incomingCallVisible)return;
       const ringRoom=state.threads.find(t=>t.id==='momentring_orders'||t.name==='070-0000-0700'||t.name==='모먼트링');
       if(!ringRoom)return;
-      // 새 버전에서는 이전에 저장된 메시지가 있어도 배너를 한 번 다시 표시한다.
+      // 이전 버전에서 이미 표시된 알림은 업데이트 후 다시 띄우지 않는다.
+      if((ringRoom.messages||[]).some(m=>m.deliveryNoticeId===key)){commitOnceNotice(key);return;}
       // Persist BEFORE showing: closing a banner without tapping counts as seen.
       commitOnceNotice(key);
       // Durable event marker lives inside conversation state as a fallback.
@@ -1446,13 +1453,14 @@
       showPhoneNotice('sms','모먼트링',momentringDeliveryText,ringRoom.id,key);
     }
     function notifyHaegeumOnJaegwanOpen(){
-      const key='haegeum_20261024_invitation_v5';
+      const key='haegeum_20261024_invitation_repaired_v6';
       const room=state.kakao.find(r=>r.id==='k-haegeum');
       if(!room)return;
       // Earlier versions may have inserted the invitation but failed to save
       // the separately stored alert flag. Do not re-send it in that case.
       if(storedNoticeFlag(key))return;
       const invitationAlreadyInChat=(room.messages||[]).some(m=>!m.mine&&m.text===haegeum700Request);
+      
       commitOnceNotice(key);
       if(!invitationAlreadyInChat){
         room.messages.push({system:true,text:'2026년 10월 24일'});
@@ -2888,7 +2896,14 @@
       // 일반 개인톡 및 단톡방은 수동 전송만 허용하고 자동 답장은 보내지 않는다.
       // 사용자 지정 시나리오가 있는 재관이·해금 누님·전체 공지방만 예외.
       if(!['k-pinned-jaegwan','k-haegeum','k-all'].includes(room.id))return null;
-      if(room.id==='k-pinned-jaegwan')return hasQuestion?'예 요원님 확인하고 말씀드리겠습니다':'알겠습니다 요원님 저녁에 집에서 얘기합시다';
+      if(room.id==='k-pinned-jaegwan'){
+        if(/어디|위치|언제 와|집.*가|퇴근/.test(msg))return '이제 정리하고 들어가겠습니다 요원님. 오래 안 걸릴 겁니다';
+        if(/밥|저녁|먹|배고/.test(msg))return '저녁은 아직입니다. 요원님은 드셨습니까?';
+        if(/영화|보자|볼래/.test(msg))return '좋습니다 요원님. 오늘은 같이 보시죠';
+        if(/보고 싶|보고싶/.test(msg))return '저도 보고 싶습니다. 금방 들어가겠습니다';
+        if(/고마|사랑/.test(msg))return '저도요 요원님. 이따 얼굴 보고 말씀드리겠습니다';
+        return hasQuestion?'예 요원님. 무슨 일 있으십니까?':'네 요원님. 듣고 있습니다';
+      }
       if(room.id==='k-podo')return null;
       if(room.id==='k-jaegwan-podo')return null;
       if(room.id==='k-all')return '운영지원: 전체 공지방에서는 사담 자제 부탁드립니다. 업무 관련 내용만 전달해 주세요.';
@@ -2940,7 +2955,7 @@
         const isGroup=active.id==='k-jaegwan-podo'||/단톡|거지방|사담방|전체/.test(active.name);
         return {header:appHeader({title:active.id==='k-jaegwan-podo'?'현무 1팀 (3)':active.name,back:'kakao-list'}),noPadding:true,
           body:`<div class="kakao-chat-flow">${(active.messages||[]).map(m=>{if(m.system){return `<div class="kakao-date-divider"><span>${safe(m.text)}</span></div>`;}let sender='';let body=m.text;if(!m.mine){const matched=String(m.text).match(/^([^:]{1,24}):\s*(.*)$/);if(isGroup&&matched){sender=matched[1];body=matched[2];}else if(!isGroup){sender=active.name;body=m.text;}return `<div class="kakao-line incoming">${active.id==='k-jaegwan-podo'?`<span class="kakao-mini-avatar team-avatar">${safe((sender||active.name).slice(0,1))}</span>`:''}<div class="kakao-chat-stack">${sender?`<div class="kakao-sender-name">${safe(sender)}</div>`:''}<div class="kakao-message">${safe(body)}</div></div></div>`;}return `<div class="kakao-line outgoing"><div class="kakao-message">${safe(body)}</div></div>`; }).join('')}${active.id==='k-pinned-jaegwan'?jaegwanTypingMarkup():''}</div>`,
-          footer:`<form id="sendMessage" class="chat-compose"><input id="kakaoDraft" name="message" placeholder="${active.id==='k-pinned-jaegwan' && Number(store.get('jaegwanDraftStep',0))>=jaegwanDrafts.length?'':'메시지 입력'}" autocomplete="off" required maxlength="3000" ${active.id==='k-pinned-jaegwan' && Number(store.get('jaegwanDraftStep',0))>=jaegwanDrafts.length?'disabled':''}><button type="submit" aria-label="메시지 보내기" ${active.id==='k-pinned-jaegwan' && Number(store.get('jaegwanDraftStep',0))>=jaegwanDrafts.length?'disabled':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.2 2.8 10 14"/><path d="m21.2 2.8-6.5 18.4-4.7-7.2-7.2-4.7z"/></svg></button></form>`};
+          footer:`<form id="sendMessage" class="chat-compose"><input id="kakaoDraft" name="message" placeholder="메시지 입력" autocomplete="off" required maxlength="3000"><button type="submit" aria-label="메시지 보내기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.2 2.8 10 14"/><path d="m21.2 2.8-6.5 18.4-4.7-7.2-7.2-4.7z"/></svg></button></form>`};
       }
       if(state.tab==='compose')return {header:appHeader({title:'새 채팅',back:'kakao-list'}),body:`<form id="createThread" class="form-stack"><input class="field" name="recipient" placeholder="이름 입력" maxlength="35" required><button class="primary-btn" type="submit">대화 만들기</button></form>`};
       if(state.kakaoSection==='profiles'){
@@ -3207,6 +3222,8 @@
     function showOpeningIncomingCall(){
       if(openingIncomingShown)return;
       openingIncomingShown=true;
+      if(store.get('openingIncomingCallAlreadyShown',false)===true){notifyMomentringDelivery();return;}
+      store.set('openingIncomingCallAlreadyShown',true);
       incomingCallVisible=true;
       state.off=false;
       render();
@@ -3229,7 +3246,12 @@
       requestAnimationFrame(ensureContactWheelScroll);
       screen.className=`screen theme-${state.theme}`;
       let content=state.mode==='lock'?renderLock():state.mode==='passcode'?renderPasscode():state.mode==='home'?renderHome():renderApp();
+      // Keep the SAME banner node when navigating: otherwise its entrance animation
+      // restarts on every tap and makes one notification look like many.
+      const retainedNotice=screen.querySelector('.phone-notification');
+      if(retainedNotice){retainedNotice.classList.add('notice-stable');retainedNotice.remove();}
       screen.innerHTML=`${wallpaper()}<div class="screen-body">${content}</div>${state.app==='phone'&&state.tab==='calling'?'':topStatus()}${state.off?'<div class="screen-off"><span class="screen-off-hint">화면을 켜려면 오른쪽 버튼을 누르세요</span></div>':''}<div id="incomingFullscreen" aria-live="polite" hidden></div>`;
+      if(retainedNotice && activePhoneNotice)screen.appendChild(retainedNotice);
       const incomingPortal=document.getElementById('incomingFullscreen');
       incomingPortal.hidden=!incomingCallVisible;
       incomingPortal.innerHTML=incomingCallVisible?incomingCallMarkup():'';
@@ -3363,7 +3385,7 @@
       const input=form.querySelector('[name="message"]');
       const msg=String(input?.value||'').trim();
       if(!msg)return false;
-      if(state.threadId==='k-pinned-jaegwan' && Number(store.get('jaegwanDraftStep',0))>=jaegwanDrafts.length)return false;
+      
       const obj=state.kakao.find(t=>t.id===state.threadId);
       if(!obj)return false;
       if(jaegwanReplyPending&&obj.id==='k-pinned-jaegwan')return false;
@@ -3374,8 +3396,8 @@
       if(isJaegwan){
         const step=Math.max(0,Number(store.get('jaegwanDraftStep',0))||0);
         const scripted=jaegwanDrafts[step];
-        reply=scripted?scripted.reply:null;
-        store.set('jaegwanDraftStep',step+1);
+        reply=scripted && msg===scripted.out ? scripted.reply : simulateKakaoReply(obj,msg);
+        if(scripted && msg===scripted.out)store.set('jaegwanDraftStep',step+1);
       }else reply=simulateKakaoReply(obj,msg);
       obj.lastReadIndex=obj.messages.length;
       markKakaoActive(obj);
@@ -3429,36 +3451,6 @@
         const name=String(values.get('recipient')||'').trim();if(!name)return;
         const obj={id:id(),name,messages:[]};(state.app==='kakao'?state.kakao:state.threads).unshift(obj);
         saveThreadArray();state.threadId=obj.id;state.tab='';render();
-      }
-      if(form.id==='sendMessage'){
-        const msg=String(values.get('message')||'').trim();if(!msg)return;
-        const obj=(state.app==='kakao'?state.kakao:state.threads).find(t=>t.id===state.threadId);
-        if(obj){
-          clearInterval(jaegwanTypingTimer);
-          obj.messages.push({text:msg,mine:true});
-          if(state.app==='kakao'){
-            const isJaegwan=obj.id==='k-pinned-jaegwan';
-            let reply;
-            if(isJaegwan){
-              const step=Math.max(0,Number(store.get('jaegwanDraftStep',0))||0);
-              const scripted=jaegwanDrafts[Math.min(step,jaegwanDrafts.length-1)];
-              reply=msg===scripted.out?scripted.reply:simulateKakaoReply(obj,msg);
-              store.set('jaegwanDraftStep',step+1);
-            }else reply=simulateKakaoReply(obj,msg);
-            obj.lastReadIndex=obj.messages.length;
-            markKakaoActive(obj);render();
-            const roomId=obj.id;
-            setTimeout(()=>{
-              const room=state.kakao.find(t=>t.id===roomId);if(!room)return;
-              room.messages.push(...String(reply).split("\n").map(text=>({text,mine:false})));
-              const opened=state.app==='kakao'&&state.threadId===roomId;
-              if(opened)room.lastReadIndex=room.messages.length;
-              store.set('kakao',state.kakao);
-              if(state.app==='kakao')render();
-              if(!opened)showPhoneNotice('kakao',room.name,reply,roomId);
-            },850);
-          }else{saveThreadArray();render();}
-        }
       }
       if(form.id==='openWebsite'){
         const raw=String(values.get('url')||'').trim();if(!raw)return;
