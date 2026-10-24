@@ -825,6 +825,13 @@
 .app-icon.ic-chatgpt .chatgpt-symbol {
   color: #ffffff !important;
 }
+
+/* iPhone readable call typography */
+.call-scene .call-current{font-size:17px!important;line-height:1.55!important;min-height:66px!important;max-width:94%!important;padding:7px 10px!important;align-items:center!important;}
+.call-scene .call-meta,.call-scene .call-duration{font-size:15px!important;}
+.call-scene .call-controls .call-control small{font-size:12px!important;}
+.phone-entry b{font-size:16px!important;}
+.phone-entry small{font-size:12px!important;}
 </style>
 </head>
 <body>
@@ -1185,6 +1192,7 @@
     let incomingCallVisible=false;
     let openingIncomingShown=false;
     function startCall(name,source="recent"){
+      if(/스팸|spam/i.test(String(name))){toast('스팸 의심 번호는 통화할 수 없습니다.');return;}
       clearTimeout(callTimer);
       state.callTo=name;state.callStep=0;state.callStarted=Date.now();state.tab='calling';state.dial='';
       state.activeCallLines=callLines(name,source);state.showCallKeypad=false;state.callPadDigits='';state.callSpeakerOn=false;state.callMuted=false;
@@ -1396,8 +1404,8 @@
     // update cannot replay a notification already seen in an older HTML build.
     const oneTimeNoticesSeen=new Set();
     const noticeLegacyKeys={
-      momentring_20261024_delivery_v4:['momentringDeliveryNoticeOnceV1'],
-      haegeum_20261024_invitation_v4:['haegeum700InviteOnceV1','haegeumInviteNoticeShown']
+      momentring_20261024_delivery_v5:[],
+      haegeum_20261024_invitation_v5:[]
     };
     function storedNoticeFlag(key){
       if(oneTimeNoticesSeen.has(key))return true;
@@ -1422,14 +1430,11 @@
     const haegeum700Request='최가야 내일 시간 되냐';
     const haegeum700Response='그래 너네 기념일이라고 해서 사주는 거니까 재관이도 데리고 와라';
     function notifyMomentringDelivery(){
-      const key='momentring_20261024_delivery_v4';
+      const key='momentring_20261024_delivery_v5';
       if(storedNoticeFlag(key))return;
       const ringRoom=state.threads.find(t=>t.id==='momentring_orders'||t.name==='070-0000-0700'||t.name==='모먼트링');
       if(!ringRoom)return;
-      if((ringRoom.messages||[]).some(m=>m.deliveryNoticeId===key)){
-        commitOnceNotice(key);
-        return;
-      }
+      // 새 버전에서는 이전에 저장된 메시지가 있어도 배너를 한 번 다시 표시한다.
       // Persist BEFORE showing: closing a banner without tapping counts as seen.
       commitOnceNotice(key);
       // Durable event marker lives inside conversation state as a fallback.
@@ -1441,19 +1446,18 @@
       showPhoneNotice('sms','모먼트링',momentringDeliveryText,ringRoom.id,key);
     }
     function notifyHaegeumOnJaegwanOpen(){
-      const key='haegeum_20261024_invitation_v4';
+      const key='haegeum_20261024_invitation_v5';
       const room=state.kakao.find(r=>r.id==='k-haegeum');
       if(!room)return;
       // Earlier versions may have inserted the invitation but failed to save
       // the separately stored alert flag. Do not re-send it in that case.
       if(storedNoticeFlag(key))return;
-      if((room.messages||[]).some(m=>!m.mine&&m.text===haegeum700Request)){
-        commitOnceNotice(key);
-        return;
-      }
+      const invitationAlreadyInChat=(room.messages||[]).some(m=>!m.mine&&m.text===haegeum700Request);
       commitOnceNotice(key);
-      room.messages.push({system:true,text:'2026년 10월 24일'});
-      room.messages.push({mine:false,text:haegeum700Request});
+      if(!invitationAlreadyInChat){
+        room.messages.push({system:true,text:'2026년 10월 24일'});
+        room.messages.push({mine:false,text:haegeum700Request});
+      }
       markKakaoActive(room);
       showPhoneNotice('kakao','해금 누님',haegeum700Request,room.id,key);
     }
@@ -3221,11 +3225,7 @@
     function render() {
       // A banner must never be recreated when switching tabs/apps or redrawing.
       // Its underlying SMS/Kakao message is kept in the relevant conversation.
-      if(activePhoneNotice){
-        activePhoneNotice=null;
-        clearTimeout(noticeTimeout);
-        noticeTimeout=null;
-      }
+      // 알림 배너는 화면을 다시 그려도 유지한다.
       requestAnimationFrame(ensureContactWheelScroll);
       screen.className=`screen theme-${state.theme}`;
       let content=state.mode==='lock'?renderLock():state.mode==='passcode'?renderPasscode():state.mode==='home'?renderHome():renderApp();
@@ -3288,7 +3288,7 @@
       const gifts=e.target.closest('[data-kakao-gifts]');if(gifts){state.kakaoSection='gifts';state.threadId=null;render();return;}
       const ks=e.target.closest('[data-kakao-section]');if(ks){state.kakaoSection=ks.dataset.kakaoSection;state.threadId=null;state.tab='';render();return;}
       const kp=e.target.closest('[data-kakao-person]');if(kp){let t=state.kakao.find(x=>x.name===kp.dataset.kakaoPerson);if(!t){t={id:id(),name:kp.dataset.kakaoPerson,messages:[]};state.kakao.push(t);store.set('kakao',state.kakao);}if(state.app==='kakao'){t.lastReadIndex=t.messages.length;store.set('kakao',state.kakao);}state.threadId=t.id;render();if(state.app==='kakao'&&t.id==='k-pinned-jaegwan')setTimeout(notifyHaegeumOnJaegwanOpen,800);return;}
-      const call=e.target.closest('[data-call-name]');if(call){startCall(call.dataset.callName,state.app==='phone'&&state.tab==='recent'?'recent':'contact');return;}
+      const call=e.target.closest('[data-call-name]');if(call){if(/스팸|spam/i.test(call.dataset.callName)){toast('스팸 의심 번호는 차단되어 있습니다.');return;}startCall(call.dataset.callName,state.app==='phone'&&state.tab==='recent'?'recent':'contact');return;}
       const vm=e.target.closest('[data-voice]');if(vm){startVM(Number(vm.dataset.voice));return;}
       const photo=e.target.closest('[data-photo]');if(photo){state.photoIndex=Number(photo.dataset.photo);render();return;}
       const thread=e.target.closest('[data-thread]');if(thread){if(state.app==='kakao'){const room=state.kakao.find(t=>t.id===thread.dataset.thread);if(room){room.lastReadIndex=room.messages.length;room.unread=0;store.set('kakao',state.kakao);}}else{state.openedSms??=[];if(!state.openedSms.includes(thread.dataset.thread))state.openedSms.push(thread.dataset.thread);store.set('openedSms',state.openedSms);}state.threadId=thread.dataset.thread;state.tab='';render();if(state.app==='kakao'&&state.threadId==='k-pinned-jaegwan')setTimeout(notifyHaegeumOnJaegwanOpen,800);return;}
