@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#171820" />
   <title>최요원의 아이폰</title>
+  <meta name="apple-mobile-web-app-title" content="최요원의 아이폰" />
+  <meta property="og:title" content="최요원의 아이폰" />
   <style>
     :root { font-family: -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-synthesis:none; }
     * { box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
@@ -1365,7 +1367,14 @@
       callRingNodes.forEach(({gain})=>{try{gain.gain.cancelScheduledValues(0);gain.gain.setValueAtTime(0.00001,kakaoAudioContext.currentTime)}catch(e){}});
       callRingNodes=[];
     }
+    let momentringBannerShownThisPage=false;
+    let momentringBannerExpiresAt=0;
     function showPhoneNotice(kind,sender,body,threadId,eventId){
+      if(sender==='모먼트링'){
+        if(momentringBannerShownThisPage)return;
+        momentringBannerShownThisPage=true;
+        momentringBannerExpiresAt=Date.now()+5500;
+      }
       if(eventId && shownBannerEventIds.has(eventId))return;
       if(eventId)shownBannerEventIds.add(eventId);
       if(state.mode==='passcode'||state.mode==='lock'||state.off||incomingCallVisible)return;
@@ -1436,7 +1445,7 @@
     const haegeum700Response='그래 너네 기념일이라고 해서 사주는 거니까 재관이도 데리고 와라';
     function notifyMomentringDelivery(){
       const key='momentring_20261024_delivery_repaired_v6';
-      if(storedNoticeFlag(key))return;
+      if(momentringBannerShownThisPage||storedNoticeFlag(key))return;
       if(state.mode==='lock'||state.mode==='passcode'||state.off||incomingCallVisible)return;
       const ringRoom=state.threads.find(t=>t.id==='momentring_orders'||t.name==='070-0000-0700'||t.name==='모먼트링');
       if(!ringRoom)return;
@@ -3222,8 +3231,10 @@
     function showOpeningIncomingCall(){
       if(openingIncomingShown)return;
       openingIncomingShown=true;
-      if(store.get('openingIncomingCallAlreadyShown',false)===true){notifyMomentringDelivery();return;}
-      store.set('openingIncomingCallAlreadyShown',true);
+      // 이전 버전의 영구 저장 플래그가 첫 수신 전화를 막지 않도록 한다.
+      // 한 번의 브라우저 탭에서는 중복 호출하지 않는다.
+      if(sessionStorage.getItem('openingIncomingCallShownThisTab')==='yes'){notifyMomentringDelivery();return;}
+      sessionStorage.setItem('openingIncomingCallShownThisTab','yes');
       incomingCallVisible=true;
       state.off=false;
       render();
@@ -3251,7 +3262,7 @@
       const retainedNotice=screen.querySelector('.phone-notification');
       if(retainedNotice){retainedNotice.classList.add('notice-stable');retainedNotice.remove();}
       screen.innerHTML=`${wallpaper()}<div class="screen-body">${content}</div>${state.app==='phone'&&state.tab==='calling'?'':topStatus()}${state.off?'<div class="screen-off"><span class="screen-off-hint">화면을 켜려면 오른쪽 버튼을 누르세요</span></div>':''}<div id="incomingFullscreen" aria-live="polite" hidden></div>`;
-      if(retainedNotice && activePhoneNotice)screen.appendChild(retainedNotice);
+      if(retainedNotice && activePhoneNotice && (activePhoneNotice.sender!=='모먼트링'||Date.now()<momentringBannerExpiresAt))screen.appendChild(retainedNotice);
       const incomingPortal=document.getElementById('incomingFullscreen');
       incomingPortal.hidden=!incomingCallVisible;
       incomingPortal.innerHTML=incomingCallVisible?incomingCallMarkup():'';
