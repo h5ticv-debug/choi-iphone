@@ -266,7 +266,7 @@
     .gpt-user{background:#33343b;border-radius:18px;padding:11px 13px;max-width:94%;align-self:flex-end}
     .gpt-assistant{display:flex;gap:8px;align-items:flex-start}
     .gpt-assistant>div{flex:1}
-    .gpt-icon{font-size:19px}
+    .gpt-icon{font-size:19px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 27px;width:27px;height:27px;border-radius:50%;background:#181818!important;color:#fff!important;box-shadow:inset 0 0 0 1px #555!important}
     .gpt-compose{padding:13px 12px;background:#2b2c32;border-top:1px solid #42434a;color:#aeb0bb;font-size:12px;display:flex;justify-content:space-between}
 
     /* iPhone 메시지 전용 레이아웃 */
@@ -1199,7 +1199,7 @@
     function startCall(name,source="recent"){
       if(/스팸|spam/i.test(String(name))){toast('스팸 의심 번호는 통화할 수 없습니다.');return;}
       clearTimeout(callTimer);
-      state.callTo=name;state.callStep=0;state.callStarted=Date.now();state.tab='calling';state.dial='';
+      state.callTo=name;state.callStep=0;state.callEndedNotice=false;state.callStarted=Date.now();state.tab='calling';state.dial='';
       state.activeCallLines=callLines(name,source);state.showCallKeypad=false;state.callPadDigits='';state.callSpeakerOn=false;state.callMuted=false;
       render();
       const lines=state.activeCallLines;
@@ -1207,7 +1207,13 @@
         if(state.tab!=='calling'||state.app!=='phone')return;
         state.callStep++;render();
         if(state.callStep<lines.length)callTimer=setTimeout(advance,3000);
-        else callTimer=setTimeout(()=>{if(state.tab==='calling'){state.tab='recent';state.callTo=null;state.activeCallLines=null;render();}},4600);
+        else callTimer=setTimeout(()=>{
+          if(state.tab!=='calling')return;
+          state.callEndedNotice=true;render();
+          callTimer=setTimeout(()=>{
+            if(state.tab==='calling'){state.tab='recent';state.callTo=null;state.activeCallLines=null;state.callEndedNotice=false;render();}
+          },1700);
+        },3000);
       };
       callTimer=setTimeout(advance,1700);
     }
@@ -1442,7 +1448,7 @@
     }
     const momentringDeliveryText='[Web발신] [모먼트링] 주문번호 MR-1026-0700 배송 완료. 상품이 수령 장소에 도착했습니다.';
     const haegeum700Request='최가야 내일 시간 되냐';
-    const haegeum700Response='그래 너네 기념일이라고 해서 사주는 거니까 재관이도 데리고 와라';
+    const haegeum700Response='너네 기념일이라고 들어서\n재관이도 데리고 나와';
     function notifyMomentringDelivery(){
       const key='momentring_20261024_delivery_repaired_v6';
       if(momentringBannerShownThisPage||storedNoticeFlag(key))return;
@@ -1578,7 +1584,7 @@
       else if(tab==='calling'){
         const lines=state.activeCallLines||callLines(state.callTo||'');
         const seconds=Math.max(0,Math.floor((Date.now()-(state.callStarted||Date.now()))/1000));
-        body=`<div class="call-scene"><div class="call-meta">${state.callStep===0?'연결 중…':'통화 중'}</div><h2>${safe(state.callTo||'')}</h2><div class="call-duration" data-call-duration>${state.callStep===0?'전화 연결 중':`${pad(Math.floor(seconds/60))}:${pad(seconds%60)}`}</div><div class="call-current" aria-live="polite">${state.callStep>0?safe(lines[Math.min(state.callStep-1,lines.length-1)].replace(' · ',': ')):''}</div><div class="call-controls"><button type="button" class="call-control ${state.callMuted?'call-selected':''}" data-action="call-mute" aria-pressed="${!!state.callMuted}"><span class="call-svg-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v5a3 3 0 0 0 5.4 1.8"/><path d="M15 9V5a3 3 0 0 0-6 0v1"/><path d="M5 10v2a7 7 0 0 0 11.6 5.3"/><path d="M19 10v2"/><path d="M12 19v3m-4 0h8"/><path d="M3 3l18 18"/></svg></span><small>${state.callMuted?'음소거 켬':'소리 끔'}</small></button><button type="button" class="call-control ${state.showCallKeypad?'call-selected':''}" data-action="call-keypad"><span class="call-svg-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="5" r="1.6"/><circle cx="12" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/></svg></span><small>키패드</small></button><button type="button" class="call-control ${state.callSpeakerOn?'call-selected':''}" data-action="call-speaker" aria-pressed="${!!state.callSpeakerOn}"><span class="call-svg-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></span><small>스피커</small></button><div class="call-control"><span class="call-svg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg></span><small>통화 추가</small></div><div class="call-control"><span class="call-svg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3"/></svg></span><small>FaceTime</small></div><div class="call-control"><span class="call-svg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span><small>연락처</small></div></div>${state.showCallKeypad?`<div class="call-pad-sheet"><div class="call-pad-digits">${safe(state.callPadDigits||'')}</div><div class="call-pad-grid">${['1','2','3','4','5','6','7','8','9','*','0','#'].map(n=>`<button type="button" data-call-digit="${n}">${n}</button>`).join('')}</div><button class="call-pad-close" data-action="call-keypad">키패드 닫기 ⌄</button></div>`:''}<button class="hangup" data-action="end-call" aria-label="통화 종료">${icon('phone')}</button></div>`;
+        body=`<div class="call-scene"><div class="call-meta">${state.callEndedNotice?'통화 종료':(state.callStep===0?'연결 중…':'통화 중')}</div><h2>${safe(state.callTo||'')}</h2><div class="call-duration" data-call-duration>${state.callStep===0?'전화 연결 중':`${pad(Math.floor(seconds/60))}:${pad(seconds%60)}`}</div><div class="call-current" aria-live="polite">${state.callEndedNotice?'통화가 종료되었습니다.':(state.callStep>0?safe(lines[Math.min(state.callStep-1,lines.length-1)].replace(' · ',': ')):'')}</div><div class="call-controls"><button type="button" class="call-control ${state.callMuted?'call-selected':''}" data-action="call-mute" aria-pressed="${!!state.callMuted}"><span class="call-svg-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v5a3 3 0 0 0 5.4 1.8"/><path d="M15 9V5a3 3 0 0 0-6 0v1"/><path d="M5 10v2a7 7 0 0 0 11.6 5.3"/><path d="M19 10v2"/><path d="M12 19v3m-4 0h8"/><path d="M3 3l18 18"/></svg></span><small>${state.callMuted?'음소거 켬':'소리 끔'}</small></button><button type="button" class="call-control ${state.showCallKeypad?'call-selected':''}" data-action="call-keypad"><span class="call-svg-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="5" r="1.6"/><circle cx="12" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/></svg></span><small>키패드</small></button><button type="button" class="call-control ${state.callSpeakerOn?'call-selected':''}" data-action="call-speaker" aria-pressed="${!!state.callSpeakerOn}"><span class="call-svg-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6h4l5 4V5L7 9H3z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></span><small>스피커</small></button><div class="call-control"><span class="call-svg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg></span><small>통화 추가</small></div><div class="call-control"><span class="call-svg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3"/></svg></span><small>FaceTime</small></div><div class="call-control"><span class="call-svg-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span><small>연락처</small></div></div>${state.showCallKeypad?`<div class="call-pad-sheet"><div class="call-pad-digits">${safe(state.callPadDigits||'')}</div><div class="call-pad-grid">${['1','2','3','4','5','6','7','8','9','*','0','#'].map(n=>`<button type="button" data-call-digit="${n}">${n}</button>`).join('')}</div><button class="call-pad-close" data-action="call-keypad">키패드 닫기 ⌄</button></div>`:''}<button class="hangup" data-action="end-call" aria-label="통화 종료">${icon('phone')}</button></div>`;
         head='';
       }
       else if(tab==='voicemail'){
@@ -2849,11 +2855,21 @@
       const haegeum=state.kakao.find(r=>r.id==='k-haegeum');
       if(haegeum){
         for(const m of haegeum.messages||[]){
-          if(textOf(m)==='그래 700일 기념으로 사주는 거니까 재관이도 데리고 와라')m.text=haegeum700Response;
+          if(textOf(m)==='그래 700일 기념으로 사주는 거니까 재관이도 데리고 와라')m.text='너네 기념일이라고 들어서';
         }
       }
       store.set('jaegwanDialogueOct25RevisionV1',true);
     }
+    // 해금의 기념일 답장은 두 개의 별도 말풍선으로 표시한다.
+    for(const room of state.kakao.filter(r=>r.id==='k-haegeum')){
+      for(let i=0;i<room.messages.length;i++){
+        const m=room.messages[i];
+        if(!m.mine && (m.text==='그래 너네 기념일이라고 해서 사주는 거니까 재관이도 데리고 와라'||m.text==='그래 700일 기념으로 사주는 거니까 재관이도 데리고 와라')){
+          room.messages.splice(i,1,{...m,text:'너네 기념일이라고 들어서'},{...m,text:'재관이도 데리고 나와'});i++;
+        }
+      }
+    }
+    store.set('kakao',state.kakao);
     // Single-pass corrections for saved conversations from previous HTML versions.
     if(!store.get('podoReunionMovieCorrectionOct25',false)){
       const podo=state.kakao.find(r=>r.id==='k-podo');
@@ -2877,7 +2893,35 @@
       }
       store.set('podoReunionMovieCorrectionOct25',true);
     }
+    // 새 페이지 로드마다 스토리만 초기화. 다른 카톡방/앱/설정은 보존.
+    for(const roomId of ['k-pinned-jaegwan','k-haegeum']){
+      const seed=kakaoSeed.find(r=>r.id===roomId);
+      const pos=state.kakao.findIndex(r=>r.id===roomId);
+      if(seed && pos>=0)state.kakao[pos]=JSON.parse(JSON.stringify(seed));
+      else if(seed)state.kakao.push(JSON.parse(JSON.stringify(seed)));
+    }
+    store.set('jaegwanDraftStep',0);
     store.set('kakao',state.kakao);
+    // 기존 접속의 알림 확인 기록만 삭제한다.
+    for(const key of ['momentring_20261024_delivery_repaired_v6',
+                      'momentring_20261024_delivery_v5',
+                      'momentring_20261024_delivery_v4',
+                      'haegeum_20261024_invitation_repaired_v6',
+                      'haegeum_20261024_invitation_v5',
+                      'haegeum_20261024_invitation_v4']){
+      localStorage.removeItem('retroiphone_'+key);
+      for(const prefix of ['retroiphone_once_','retroiphone_story_once_']){
+        localStorage.removeItem(prefix+key);
+        sessionStorage.removeItem(prefix+key);
+        document.cookie=prefix+key+'=; path=/; max-age=0; SameSite=Lax';
+      }
+    }
+    sessionStorage.removeItem('openingIncomingCallShownThisTab');
+    // 기존 모먼트링 문자 자체는 남기고 알림 표시 기록만 초기화한다.
+    for(const room of state.threads){
+      for(const msg of room.messages||[])if(msg.deliveryNoticeId)delete msg.deliveryNoticeId;
+    }
+    store.set('threads',state.threads);
     function kakaoUnread(room){
       if(!room||!Array.isArray(room.messages))return 0;
       const lastMine=room.messages.findLastIndex(m=>m.mine===true);
@@ -2921,7 +2965,7 @@
       if(room.id==='k-gift')return '[카카오톡 선물하기] 문의하신 내용은 선물하기 고객센터에서 확인하실 수 있습니다';
       if(room.id==='k-haegeum'){
         const invited=(room.messages||[]).some(m=>!m.mine&&m.text===haegeum700Request);
-        const alreadyResponded=(room.messages||[]).some(m=>!m.mine&&m.text===haegeum700Response);
+        const alreadyResponded=(room.messages||[]).some(m=>!m.mine&&(m.text==='재관이도 데리고 나와'||m.text===haegeum700Response));
         if(invited&&!alreadyResponded)return haegeum700Response;
         return at(['그래 최가야 알았다','어 나중에 다시 얘기하자','그래 너도 좀 쉬어라']);
       }
@@ -2969,9 +3013,9 @@
       if(state.tab==='compose')return {header:appHeader({title:'새 채팅',back:'kakao-list'}),body:`<form id="createThread" class="form-stack"><input class="field" name="recipient" placeholder="이름 입력" maxlength="35" required><button class="primary-btn" type="submit">대화 만들기</button></form>`};
       if(state.kakaoSection==='profiles'){
         const profileNames=[...new Map(phoneContacts.map(c=>[c.name,c])).values()].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-        const displayCount=Math.max(237, profileNames.length);
-        return {header:appHeader({title:'친구',right:kakaoTopIcons()}),noPadding:true,footer:kakaoBottomNav(),body:`
-          <div class="kakao-friends-intro">친구 ${displayCount}<span>업데이트순</span></div>
+        const displayCount=profileNames.length;
+        return {header:appHeader({title:'',right:kakaoTopIcons()}),noPadding:true,footer:kakaoBottomNav(),body:`
+          
           <div class="kakao-self">${kakaoAvatar('최요원')}<div><strong>최요원</strong><small>내 프로필</small></div></div>
           <div class="kakao-feature-row">${kakaoAvatar('업데이트')}<span>업데이트한 친구</span><span class="kakao-chevron">›</span></div>
           <div class="kakao-feature-row">${kakaoAvatar('채널')}<span>채널</span><span class="kakao-chevron">›</span></div>
@@ -3009,7 +3053,7 @@
       const arr=[...state.kakao].sort((a,b)=>((a.pinRank??999)-(b.pinRank??999)) || ((b.lastActivityAt||0)-(a.lastActivityAt||0)));
       const chatTimes={'k-pinned-jaegwan':'21:52','k-jaegwan-podo':'19:46','k-all':'17:12','k-hyeonmu':'어제','k-poor':'어제','k-gift':'어제','k-podo':'16:38','k-haegeum':'어제','k-reunion':'10월 21일','k-joojak2':'10월 22일'};
       const totalUnread=kakaoUnreadTotal();
-      return {header:appHeader({title:`채팅 ${totalUnread?totalUnread:''}`,right:kakaoTopIcons()}),noPadding:true,footer:kakaoBottomNav(),body:`
+      return {header:appHeader({title:'',right:kakaoTopIcons()}),noPadding:true,footer:kakaoBottomNav(),body:`
         <div class="kakao-filter-row"><span class="active">전체</span><span>단체</span></div>
         <div class="kakao-sale-banner"><b>카카오톡 선물하기</b><small>최근 받은 선물과 광고 메시지를 확인해 보세요</small></div>
         <div class="kakao-chat-list">${arr.map(t=>{const group=/단톡|거지방|전체|\d+팀/.test(t.name);const msgs=t.messages||[];const last=(msgs.filter(m=>!m.system).at(-1)?.text||'').replace(/^([^:]{1,16}:\s*)/,'');const lastDateDivider=[...msgs].reverse().find(m=>m.system&&/\d{4}년\s*\d{1,2}월\s*\d{1,2}일/.test(m.text||''));const listDate=lastDateDivider?((lastDateDivider.text||'').match(/\d{1,2}월\s*\d{1,2}일/)||[])[0]:(chatTimes[t.id]||'10월 23일');return `<button class="kakao-chat-row" data-thread="${safe(t.id)}">${kakaoAvatar(t.name,group)}<span class="kakao-chat-caption"><strong>${safe(t.name)}${t.pin?'<span class="kakao-pin">고정</span>':''}</strong><small>${safe(last)}</small></span><span class="kakao-chat-meta"><span class="kakao-chat-time">${t.lastActivityAt?new Date(t.lastActivityAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):listDate}</span>${kakaoUnread(t)?`<span class="kakao-unread-badge">${Math.min(99,kakaoUnread(t))}</span>`:''}</span></button>`}).join('')}</div>`};
@@ -3036,6 +3080,23 @@
       if(tab==='stopwatch') body=`<div class="stopwatch" data-stopwatch>00:00.00</div><div style="display:flex;justify-content:center;gap:16px"><button class="secondary-btn" data-action="sw-reset">초기화</button><button class="primary-btn" data-action="sw-toggle">${state.swStart?'정지':'시작'}</button></div>`;
       return {header:appHeader(),body,footer:footerTabs([['world','세계 시계','clock'],['alarm','알람','list'],['stopwatch','스톱워치','dial']],tab)};
     }
+    // 기존 메모 내용은 보존하고 요청한 다섯 항목만 맨 앞으로 정렬.
+    const callbackMemo=state.notes.find(n=>n.id==='yo-guide-for-reader');
+    if(callbackMemo){
+      const lines=String(callbackMemo.content||'').split('\n').filter(Boolean);
+      const requested=[
+        '□ 재관이한테 콜백하기',
+        '□ 음성사서함 듣기',
+        '□ 챗지피티한테 질문하기',
+        '□ 단축번호 1번 눌러서 통화하기',
+        '□ 캘린더 일정 확인'
+      ];
+      const normalized=line=>line.replace(/^[□☐☑✓\s-]+/g,'').trim();
+      const omit=new Set(requested.map(normalized).concat(['재관이한테 연락하기']));
+      const rest=lines.filter(line=>!omit.has(normalized(line)));
+      const desired=[...requested,...rest].join('\n');
+      if(callbackMemo.content!==desired){callbackMemo.content=desired;store.set('notes',state.notes);}
+    }
     function renderNotes() {
       if(state.noteId!==null) {
         const n=state.notes.find(x=>x.id===state.noteId);
@@ -3057,7 +3118,7 @@
     }
     const chatGPTDialogs=[
       {title:'아니 이게 가능한 일이야?',items:[
-        ['user','아니내가술마시고담타가지러나왔는데진짜오랯본직장후배가따라나와서그런가보다햇어 내가그떄만취상태여서어지러워서휘청거렸던거같은데어쩌다보니까그후배랑키스햇ㅆ늗데이럴수가있는거야? 근데그후배가나한테고백해서일단내가알았다고하고나왔는데 갑자기술이확깨네 나어떡해?'],
+        ['user','아니내가술마시고담타가지러나오니까진짜오랯본직장후배가따라나와서그런가보다햇어 내가그떄만취상태여서어지러워서휘청거린것같고어쩌다보니까그후배랑키스햇ㅆ늗데이럴수가있는거야? 근데그후배가나한테고백해서일단내가알았다고하고나왔는데 갑자기술이확깨네 나어떡해?'],
         ['assistant','일단 지금 당장 관계를 결정하거나 답을 확정할 필요는 없어. 술을 마셨고 정신도 없었던 상황이니까, 무슨 일이 있었는지 차분하게 정리하는 게 먼저야.\n\n특히 네가 그 키스를 정말 원했던 건지, 상대가 고백했을 때 「알았어」라고 답한 게 진심이었는지도 생각해 봐. 둘 다 확실하지 않다면 내일 맑은 정신으로 다시 이야기하자고 해도 괜찮아. 일단 안전하게 귀가하고 물 마시고 쉬어.\n\n그런데 하나만 물어볼게. 평소에도 그 후배한테 마음이 있었어?']
       ]},
       {title:'기념일 선물 뭐가 좋을까',items:[
@@ -3087,7 +3148,7 @@
     ];
     function renderChatgpt() {
       const merged=[
-        ['user','아니내가술마시고담타가지러나왔는데진짜오랯본직장후배가따라나와서그런가보다햇어 내가그떄만취상태여서어지러워서휘청거렸던거같은데어쩌다보니까그후배랑키스햇ㅆ늗데이럴수가있는거야? 근데그후배가나한테고백해서일단내가알았다고하고나왔는데 갑자기술이확깨네 나어떡해?'],
+        ['user','아니내가술마시고담타가지러나오니까진짜오랯본직장후배가따라나와서그런가보다햇어 내가그떄만취상태여서어지러워서휘청거린것같고어쩌다보니까그후배랑키스햇ㅆ늗데이럴수가있는거야? 근데그후배가나한테고백해서일단내가알았다고하고나왔는데 갑자기술이확깨네 나어떡해?'],
         ['assistant','많이 당황스럽겠다. 취한 상태에서 있었던 일이니까 지금 당장 마음을 결정하지 않아도 돼. 일단 안전하게 집에 가서 쉬고, 내일 서로 맑은 정신일 때 그 상황을 어떻게 받아들였는지 이야기하는 게 좋겠어. 너도 그 상황을 원했던 건지부터 생각해 보고.'],
         ['user','하...걔가자기는안취했대 이거무슨뜻임 나만취한거알고있었단거잖아'],
         ['assistant','그렇다면 더더욱 그 상황이 편했는지 확인하는 게 중요해. 상대가 술에 취하지 않았다면 네가 많이 취했다는 걸 어떻게 받아들였는지, 왜 그런 행동을 했는지도 분명하게 물어볼 수 있어. 네가 당황스럽고 불편했다면 그 감정도 존중받아야 해.'],
